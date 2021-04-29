@@ -1,32 +1,54 @@
 package com.haklerz.brain;
 
-import java.util.Random;
-
 public class Net {
     private double[] nodes;
-    private WeightMatrix matrix;
+    private Matrix matrix;
 
     public Net(int nodeCount) {
         this.nodes = new double[nodeCount];
-        this.matrix = WeightMatrix.newGaussian(nodeCount);
-
-        // Should be moved somewhere else.
-        Random random = new Random();
-        for (int i = 0; i < nodes.length; i++)
-            nodes[i] = random.nextGaussian();
+        this.matrix = Matrix.sparseGaussian(nodeCount, 0.1);
     }
 
-    public void update() {
+    public void setMatrix(Matrix matrix) {
+        this.matrix = matrix;
+    }
+
+    public Matrix getMatrix() {
+        return matrix;
+    }
+
+    /**
+     * Updates the network with the given input values.
+     * 
+     * @param input The input values
+     */
+    public void update(double... input) {
+        if (nodes.length < input.length)
+            throw new IllegalArgumentException();
+
+        // Overwrite node values with input values
+        for (int i = 0; i < input.length; i++)
+            nodes[i] = input[i];
+
+        // Calculate the new node values
         double[] newNodes = new double[nodes.length];
+        for (int y = 0; y < matrix.size; y++) {
+            double sum = 0;
+            for (int x = 0; x < matrix.size; x++)
+                sum += nodes[x] * matrix.getWeight(x, y);
 
-        for (int to = 0; to < newNodes.length; to++) {
-            double value = nodes[to];
-            for (int from = 0; from < newNodes.length; from++) {
-                newNodes[to] = value * matrix.getWeight(from, to);
-            }
+            newNodes[y] = Math.tanh(sum);
         }
+        // Update the node values
+        nodes = newNodes;
     }
 
+    /**
+     * Returns the values of the n last nodes.
+     * 
+     * @param count
+     * @return
+     */
     public double[] getOutput(int count) {
         if (count <= 0 || count > nodes.length)
             throw new IndexOutOfBoundsException();
@@ -38,20 +60,20 @@ public class Net {
         return output;
     }
 
-    public void setInput(double[] values) {
-        if (values.length > nodes.length)
-            throw new IllegalArgumentException();
+    @Override
+    public String toString() {
+        StringBuilder builder = new StringBuilder();
 
-        for (int i = 0; i < values.length; i++)
-            nodes[i] = values[i];
-    }
+        for (int i = 0; i < nodes.length; i++) {
+            builder.append(String.format("%6f", nodes[i]));
 
-    public static void main(String[] args) {
-        Net net = new Net(5);
-        double[] out = net.getOutput(3);
-
-        for (int i = 0; i < out.length; i++) {
-            System.out.print(out[i] + ", ");
+            if (i % nodes.length == nodes.length - 1)
+                builder.append("\n");
+            else
+                builder.append(", ");
         }
+        builder.setLength(builder.length() - 1);
+
+        return builder.toString();
     }
 }
